@@ -22,7 +22,7 @@ const SHORT_TOUR = [
     id: "research",
     target: "#research",
     title: "연구",
-    text: "그중에서도 유튜브 추천을 타고 퍼지는 AI 유사과학 영상을 연구하고 있어요.",
+    text: "그중에서도 유튜브 추천을 타고 퍼지는 AI 유사과학 영상을 파고들고 있어요.",
     audio: "/audio/tour-short/02-research.mp3",
   },
   {
