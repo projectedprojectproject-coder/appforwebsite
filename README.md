@@ -6,16 +6,115 @@
 2. **질문 시간**: 안내가 끝나면 바로 마이크로 청중의 질문을 듣고, AI(Claude)가 사이트 내용만 근거로 답을 만들어 내 목소리로 실시간 대답합니다.
 3. **화면 가리키기**: 답하는 동안 이야기하는 작품·섹션으로 사이트가 스크롤되고, 펫이 그곳을 가리킵니다. 여러 작품을 말하면 **이름을 말하는 순간마다** 차례로 넘어갑니다.
 
-## 빠른 시작
+## 실행 환경
+
+| 구분 | 요구 사항 |
+|---|---|
+| 운영체제 | **Windows 10 / 11 (64비트)** — 설치 파일은 Windows x64 용. macOS·Linux 는 확인하지 않음 |
+| Node.js | **22.12 이상** (Electron 45 의 요구 사항). 개발·검증 환경: Node 24.21.0, npm 11.19.0 |
+| Git | 저장소를 받을 때 (검증: 2.54) |
+| 인터넷 | 사이트(`my-portfolio-wlq1.vercel.app`, `*.supabase.co`)와 질문 시간(`api.elevenlabs.io`, `api.anthropic.com`)에 접속 |
+| 장치 | 스피커, (질문 시간) 마이크 — Windows 설정 → 개인정보 → 마이크 → "데스크톱 앱의 마이크 접근" 켜기 |
+| 외부 서비스 계정 | ElevenLabs (복제 음성·음성 인식·음성 합성), Anthropic (AI 답변) — 질문 시간과 음성 만들기에만 필요 |
+
+화면·메모리·네트워크 등 자세한 권장 사양은 아래 [환경 요건](#환경-요건)을 보세요.
+
+## 의존성 (필요 라이브러리)
+
+`npm install` 한 번으로 모두 설치됩니다. 정확한 버전은 `package-lock.json` 에 고정되어 있습니다.
+
+| 패키지 | 버전 | 종류 | 쓰는 곳 |
+|---|---|---|---|
+| [`electron`](https://www.electronjs.org/) | 45.0.0 (`^45.0.0`) | 개발 | 앱 실행 엔진 (Chromium 156, Node 24 내장). 첫 실행 때 실행 파일(약 100MB)을 내려받음 |
+| [`electron-builder`](https://www.electron.build/) | 26.15.3 (`^26.15.3`) | 개발 | Windows 설치 파일(.exe, NSIS) 만들기 |
+| [`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) | 1.3.0 (`^1.3.0`) | 실행 | 질문 시간의 AI 답변 (Claude, 스트리밍) — 설치 파일에 함께 들어감 |
+
+npm 패키지가 아닌 외부 도구·서비스:
+
+| 이름 | 필수 여부 | 쓰는 곳 |
+|---|---|---|
+| **ffmpeg** | 선택 | `npm run voice` 가 만든 음성의 음량을 -16 LUFS 로 맞춤. 없으면 건너뜀. 설치: `winget install Gyan.FFmpeg` |
+| **ElevenLabs API** | 질문 시간·음성 만들기 | 복제 음성 합성(`eleven_multilingual_v2`, 스트리밍·글자별 시각), 음성 인식(`scribe_v1`) |
+| **Anthropic API** | 질문 시간 | Claude Opus 5.5 (`claude-opus-5-5`) |
+
+앱 코드(펫 화면·스크립트)는 위 패키지 외의 라이브러리를 쓰지 않습니다(브라우저·Node 기본 기능만 사용).
+
+## 설치 및 실행
+
+### 설치 파일로 (사용자)
+
+1. [Releases](https://github.com/projectedprojectproject-coder/appforwebsite/releases) 에서 `PortfolioPET-Setup-<버전>.exe` 를 받아 실행합니다.
+2. "Windows의 PC 보호" 창이 뜨면 **추가 정보 → 실행** (코드 서명이 없는 설치 파일).
+3. 질문 시간을 쓰려면 아래 [환경 변수 설정](#환경-변수-설정)대로 `%APPDATA%\Portfolio PET\.env` 를 만듭니다.
+4. 바탕화면·시작 메뉴의 **Portfolio PET** 으로 실행합니다.
+
+### 소스에서 (개발)
 
 ```powershell
-npm install
-npm start
+git clone https://github.com/projectedprojectproject-coder/appforwebsite.git
+cd appforwebsite
+npm install                       # 의존성 설치
+Copy-Item .env.example .env       # 환경 변수 파일 만들기 → 메모장으로 열어 값 채우기
+npm start                         # 앱 실행 (첫 실행 때 Electron 실행 파일을 내려받음)
 ```
 
-1. `.env.example` 을 복사해 `.env` 를 만들고 키 세 개를 채웁니다 (아래 [키 설정](#키-설정)).
-2. 펫의 **안내 시작** → 안내 10단계 → 자동으로 질문 시간 → 🎤 표시가 뜨면 질문.
-3. 안내 없이 바로 질문만 받으려면 **질문 받기** 버튼.
+| 명령 | 하는 일 |
+|---|---|
+| `npm start` | 앱 실행 |
+| `npm test` | 실제 앱을 켜서 자동 확인 (약 1분 30초, 가짜 서버·가짜 마이크라 비용 없음) |
+| `npm test -- --full` | 위 + 안내 10단계 끝까지 → 질문 시간까지 (약 4분) |
+| `npm run voice` | 내 목소리 mp3 만들기 (바뀐 것만). `-- --dry-run` 으로 미리 보기 |
+| `npm run sync` | 포트폴리오 레포의 최신 대본 + 사이트에 올라간 mp3 받기 |
+| `npm run sprites` | 고양이 그림·캐릭터 시트 다시 그리기 |
+| `npm run dist` | `dist/PortfolioPET-Setup-<버전>.exe` 설치 파일 만들기 |
+
+`npm run dist` 중 `EPERM: operation not permitted, rename …nsis…` 오류가 나면(백신이 내려받은 도구를 검사하는 중) 한 번 더 실행하면 됩니다.
+
+## 환경 변수 설정
+
+키는 **`.env` 파일**에 적습니다. 앱과 `npm run voice` 가 시작할 때 읽습니다.
+
+| 실행 방법 | `.env` 위치 |
+|---|---|
+| 소스에서 (`npm start`, `npm run voice`) | 프로젝트 폴더 (`package.json` 옆) |
+| 설치한 앱 | `%APPDATA%\Portfolio PET\.env` (탐색기 주소창에 `%APPDATA%\Portfolio PET` 입력) |
+
+`.env.example` 을 복사해서 만들면 됩니다. 형식은 `이름=값` 한 줄씩, 따옴표 없이:
+
+```dotenv
+ELEVENLABS_API_KEY=여기에_ElevenLabs_키
+ELEVENLABS_VOICE_ID=여기에_복제_음성_ID
+ANTHROPIC_API_KEY=여기에_Anthropic_키
+VOICE_STABILITY=0.7
+VOICE_SIMILARITY=0.95
+VOICE_STYLE=
+```
+
+| 변수 | 필수 | 어디서 받나 / 뜻 | 쓰는 곳 |
+|---|---|---|---|
+| `ELEVENLABS_API_KEY` | 질문 시간·음성 만들기 | ElevenLabs → Profile → API Keys (Text to Speech · Speech to Text 권한) | 음성 합성·인식 |
+| `ELEVENLABS_VOICE_ID` | 질문 시간·음성 만들기 | ElevenLabs → Voices → 내 복제 음성 → Voice ID | 내 목소리 |
+| `ANTHROPIC_API_KEY` | 질문 시간 | [console.anthropic.com](https://console.anthropic.com) → API Keys | AI 답변 |
+| `VOICE_STABILITY` | 선택 (기본 0.5) | 0~1. 높을수록 억양이 안정적 | 음성 합성 |
+| `VOICE_SIMILARITY` | 선택 (기본 0.8) | 0~1. 높을수록 원래 목소리에 가까움 | 음성 합성 |
+| `VOICE_STYLE` | 선택 (기본 0) | 0~1. 말투 과장 | 음성 합성 |
+| `ELEVENLABS_MODEL` | 선택 (기본 `eleven_multilingual_v2`) | `npm run voice` 가 쓰는 음성 모델 | 음성 만들기 |
+| `ANTHROPIC_AUTH_TOKEN` | 선택 | `ANTHROPIC_API_KEY` 대신 쓰는 토큰 | AI 답변 |
+| `ELEVENLABS_API_URL` · `ANTHROPIC_BASE_URL` | 테스트용 | API 주소를 바꿈. `npm test` 가 가짜 서버로 돌릴 때 씀 — 평소에는 비워 둠 | 테스트 |
+
+- 세 개의 키(`ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ANTHROPIC_API_KEY`) 중 하나라도 없으면 질문 시간이 꺼지고, 펫이 빠진 키 이름을 알려 줍니다. **안내는 키 없이도** 됩니다(미리 만든 mp3).
+- `.env` 대신 PowerShell 환경 변수로도 됩니다. 이미 설정된 환경 변수가 `.env` 보다 우선합니다.
+  ```powershell
+  $env:ANTHROPIC_API_KEY = "..."; npm start
+  ```
+- `.env` 는 `.gitignore` 로 깃에서 빠지고, 설치 파일(.exe)에도 들어가지 않습니다.
+- 질문 시간의 동작(모델, 대기·침묵 시간 등)은 환경 변수가 아니라 `src/config.js` 의 `qna` 에서 바꿉니다 → [설정](#설정-srcconfigjs-의-qna).
+
+## 사용법
+
+1. 펫의 **안내 시작** → 안내 10단계 → 자동으로 질문 시간 → 🎤 표시가 뜨면 질문.
+2. 안내 없이 바로 질문만 받으려면 **질문 받기** 버튼.
+3. 발표하는 사람을 위한 자세한 안내는 [`사용가이드.md`](사용가이드.md).
 
 | 버튼 | 뜻 |
 |---|---|
@@ -26,19 +125,6 @@ npm start
 | ✕ | 앱 종료 |
 
 펫을 잡고 끌면 위치를 옮길 수 있고, 사이트 창은 **Esc** 로 전체화면을 해제합니다.
-
-## 키 설정
-
-`.env` (PET 폴더, 설치한 앱은 `%APPDATA%\Portfolio PET\.env`) 에 넣습니다. `.env` 는 깃과 설치 파일(.exe)에 들어가지 않습니다.
-
-| 이름 | 어디서 | 쓰는 곳 |
-|---|---|---|
-| `ELEVENLABS_API_KEY` | ElevenLabs → Profile → API Keys | 내 목소리 생성, 질문 인식, 답변 음성 |
-| `ELEVENLABS_VOICE_ID` | ElevenLabs → Voices → 내 복제 음성 | 내 목소리 |
-| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) → API Keys | 질문 시간의 AI 답변 |
-| `VOICE_STABILITY` · `VOICE_SIMILARITY` · `VOICE_STYLE` (선택) | — | 목소리 설정. 지금 값 0.7 · 0.95 · 0 |
-
-키가 하나라도 없으면 질문 시간은 꺼지고, 펫이 빠진 키 이름을 알려 줍니다. 안내(미리 만든 mp3)는 키 없이도 됩니다.
 
 ## 내 목소리 만들기
 
@@ -186,19 +272,9 @@ npm run voice                 # 바뀐 것만 만들기
 | 테스트 | 포트 **9333** 이 비어 있어야 함. 테스트 중 사이트 창이 전체화면으로 열리니 마우스·키보드를 건드리지 않기 |
 | 코드 서명 (선택) | 공개 배포라면 인증서. 없으면 SmartScreen "알 수 없는 게시자" 경고 |
 
-## 명령
+## 테스트
 
-| 명령 | 하는 일 |
-|---|---|
-| `npm start` | 앱 실행 |
-| `npm run voice` | 내 목소리 mp3 만들기 (바뀐 것만) |
-| `npm run sync` | 포트폴리오 레포의 최신 대본 + 사이트에 올라간 mp3 받기 |
-| `npm run sprites` | 고양이 그림·캐릭터 시트 다시 그리기 |
-| `npm test` | 실제 앱을 켜서 안내·질문 시간을 자동 확인 (약 1분 30초) |
-| `npm test -- --full` | 위 + 안내 10단계를 끝까지 재생 → 질문 시간으로 넘어가는지 (약 4분) |
-| `npm run dist` | `dist/` 에 Windows 설치 파일(.exe) |
-
-테스트는 실제 앱을 DevTools 프로토콜로 조작합니다. 질문 시간은 **가짜 서버(ElevenLabs·Claude 흉내)와 가짜 마이크(소리 파일)** 로 시험하므로 비용이 들지 않습니다. 확인하는 것: 그림 9장, 눈 깜빡임, 전체화면 사이트·섹션 강조·스크롤, 입 움직임(소리 크기 기준), 일시정지, 질문 녹음 → 인식 → AI 답 → 실시간 음성, 말하는 시점에 맞춘 화면 이동(문장 사이·문장 안), 대화 이어 가기·마무리, 스크립트 오류.
+명령은 [설치 및 실행](#설치-및-실행)의 표를 보세요. 테스트는 실제 앱을 DevTools 프로토콜로 조작합니다. 질문 시간은 **가짜 서버(ElevenLabs·Claude 흉내)와 가짜 마이크(소리 파일)** 로 시험하므로 비용이 들지 않습니다. 확인하는 것: 그림 9장, 눈 깜빡임, 전체화면 사이트·섹션 강조·스크롤, 입 움직임(소리 크기 기준), 일시정지, 질문 녹음 → 인식 → AI 답 → 실시간 음성, 말하는 시점에 맞춘 화면 이동(문장 사이·문장 안), 대화 이어 가기·마무리, 스크립트 오류.
 
 ## 폴더
 
