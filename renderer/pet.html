@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' file: data:; media-src 'self' file: blob:; style-src 'self'; script-src 'self'"
+    />
+    <title>Portfolio PET</title>
+    <link rel="stylesheet" href="pet.css" />
+  </head>
+  <body>
+    <div class="bubble" id="bubble" hidden>
+      <div class="bubble-title" id="bubbleTitle"></div>
+      <div class="bubble-text" id="bubbleText"></div>
+      <div class="mic" id="mic" hidden>
+        <span class="mic-dot"></span><span class="mic-label">듣는 중</span>
+        <span class="mic-bar"><i id="micLevel"></i></span>
+      </div>
+      <div class="bubble-progress" id="bubbleProgress"></div>
+    </div>
+
+    <div class="dock">
+      <div class="avatar" id="avatar" role="img" title="끌어서 옮기기"></div>
+      <div class="controls">
+        <button id="btnStart" class="primary">안내 시작</button>
+        <button id="btnAsk" hidden title="마이크로 질문을 받아 AI가 내 목소리로 대답">질문 받기</button>
+        <button id="btnPrev" hidden title="이전">◀</button>
+        <button id="btnPause" hidden title="일시정지">❚❚</button>
+        <button id="btnNext" hidden title="다음">▶</button>
+        <button id="btnStop" hidden title="안내 끝내기">■</button>
+        <button id="btnQuit" title="앱 종료">✕</button>
+      </div>
+    </div>
+
+    <script src="qna.js"></script>
+    <script src="pet.js"></script>
+  </body>
+</html>

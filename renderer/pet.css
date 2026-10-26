@@ -1,0 +1,103 @@
+:root {
+  --accent: #ff9f1c;
+  --ink: #1d1d1f;
+  --paper: #ffffff;
+  --muted: #6e6e73;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  font-family: "Pretendard", "Malgun Gothic", system-ui, sans-serif;
+  color: var(--ink);
+  overflow: hidden;
+  user-select: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  padding: 8px;
+  gap: 8px;
+}
+
+/* 말풍선 */
+.bubble {
+  width: 100%;
+  max-height: 170px;
+  overflow-y: auto;
+  background: var(--paper);
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  position: relative;
+}
+.bubble[hidden] { display: none; }
+.bubble-title { font-weight: 700; font-size: 13px; color: var(--accent); margin-bottom: 4px; }
+.bubble-text { font-size: 14px; line-height: 1.5; }
+/* 마이크 듣는 중 표시 */
+.mic { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: #d63b3b; font-weight: 600; }
+.mic[hidden] { display: none; }
+.mic-dot { width: 8px; height: 8px; border-radius: 50%; background: #e5484d; animation: pulse 1s ease-in-out infinite; }
+.mic-bar { flex: 1; height: 6px; border-radius: 3px; background: #f1e3e3; overflow: hidden; }
+.mic-bar i { display: block; height: 100%; width: 0; background: #e5484d; transition: width 60ms linear; }
+@keyframes pulse { 50% { opacity: .35; } }
+.bubble-progress { font-size: 11px; color: var(--muted); margin-top: 6px; text-align: right; }
+
+/* 펫 + 버튼 */
+.dock { display: flex; align-items: flex-end; gap: 8px; }
+
+/* 펫: 상태별 그림을 겹쳐 두고 지금 상태(.on)만 보인다 — 바꿀 때 깜빡임이 없다 */
+.avatar {
+  position: relative;
+  width: 130px;
+  height: 152px; /* 그림 비율 240×280 */
+  flex: none;
+  -webkit-app-region: drag; /* 펫을 잡고 창을 옮긴다 */
+  cursor: grab;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
+  transform-origin: 50% 100%;
+  animation: breathe 3.6s ease-in-out infinite;
+}
+.avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+  pointer-events: none;
+}
+.avatar img.on { visibility: visible; }
+/* 숨쉬기: 아주 살짝 커졌다 작아짐 */
+@keyframes breathe {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.008, 1.018); }
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 220px;
+  justify-content: flex-end;
+}
+.controls button {
+  -webkit-app-region: no-drag;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.controls button:hover { background: #fff; }
+.controls button.primary { background: var(--accent); color: #fff; font-weight: 700; }
+.controls button[hidden] { display: none; }

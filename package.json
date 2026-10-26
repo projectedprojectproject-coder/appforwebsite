@@ -1,0 +1,60 @@
+{
+  "name": "portfolio-pet",
+  "productName": "Portfolio PET",
+  "version": "0.1.0",
+  "description": "포트폴리오 사이트를 내 목소리로 안내하는 데스크톱 펫",
+  "author": "이윤호",
+  "private": true,
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "sync": "node scripts/sync-tour.mjs",
+    "voice": "node scripts/generate-voice.mjs",
+    "sprites": "node scripts/build-pet-sprites.mjs",
+    "test": "node tests/app.test.mjs",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.portfolio.pet",
+    "productName": "Portfolio PET",
+    "files": [
+      "src/**/*",
+      "renderer/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Portfolio PET",
+      "language": "1042",
+      "artifactName": "PortfolioPET-Setup-${version}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0"
+  }
+}
