@@ -2,6 +2,8 @@
 export const CONFIG = {
   // 안내할 사이트
   siteUrl: "https://my-portfolio-wlq1.vercel.app/",
+  // 안내 길이: "short" = 발표용 30초 안내(5단계, src/tour.js) / "full" = 사이트 대본 전체(10단계, 약 2분)
+  tourMode: "short",
   // 펫 그림: 상태별로 assets/pet/ 의 파일 이름. null 이면 임시 펫을 그린다.
   // 고양이 그림은 `node scripts/build-pet-sprites.mjs` 로 다시 만들 수 있다.
   //  -talk 는 말하는 동안 입을 벌린 그림(없으면 그 상태에서는 입을 움직이지 않는다)

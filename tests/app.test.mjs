@@ -14,8 +14,11 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SHOTS = path.join(ROOT, "tests", "screenshots");
 const PORT = 9333;
-const FULL = process.argv.includes("--full"); // npm test -- --full : 안내 전체(10단계)를 끝까지 들어 본다
-const TEST_AUDIO = path.join(ROOT, "assets", "audio", "tour", "03-featured.mp3");
+const FULL = process.argv.includes("--full"); // npm test -- --full : 긴 안내(tourMode "full")여도 끝까지 들어 본다
+// 앱이 실제로 쓰는 안내 대본 (발표용 짧은 안내 / 사이트 전체 안내 중 config 의 tourMode)
+const { tourSteps: STEPS } = await import(new URL("../src/tour.js", import.meta.url));
+const { CONFIG } = await import(new URL("../src/config.js", import.meta.url));
+const TEST_AUDIO = path.join(ROOT, "assets", ...STEPS[2].audio.split("/").filter(Boolean));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ── 아주 작은 DevTools 프로토콜 클라이언트 ─────────────
@@ -281,7 +284,8 @@ try {
     await pet.shot("01-idle.png");
     const seen = await samplePoses(pet, 7000);
     if (!seen.includes("blink")) throw new Error("깜빡임 없음: " + seen.join("→"));
-    if (seen[seen.length - 1] !== "idle") throw new Error("마지막 상태 " + seen[seen.length - 1]);
+    // 기록이 깜빡이는 순간(0.15초)에 끝났을 수 있으니, 잠깐 기다려 눈을 다시 뜨는지 본다
+    await waitFor(() => pet.eval("document.body.dataset.pose === 'idle'"), 1000, "다시 눈을 뜸");
     return seen.join("→");
   });
 
@@ -305,12 +309,12 @@ try {
     return `${seen.length}번 바뀜, 음성=${voice}`;
   });
 
-  await check("다음: 생각 중 → 가리키기, 사이트가 #about 으로 스크롤", async () => {
+  await check(`다음: 생각 중 → 가리키기, 사이트가 ${STEPS[1].target} 로 스크롤`, async () => {
     await pet.eval("__poses.length = 0; document.getElementById('btnNext').click()");
     await waitFor(() => pet.eval("document.body.dataset.pose.startsWith('point')"), 8000, "가리키기");
     const seen = (await pet.eval("__poses")).filter((p, i, a) => p !== a[i - 1]);
     if (seen[0] !== "think") throw new Error("생각 중 상태 없음: " + seen.join("→"));
-    await waitFor(() => site.eval("document.querySelector('[data-pet-focus]')?.id === 'about'"), 5000, "#about 강조");
+    await waitFor(() => site.eval(`document.querySelector('[data-pet-focus]')?.matches(${JSON.stringify(STEPS[1].target)})`), 5000, `${STEPS[1].target} 강조`);
     await sleep(900); // 부드러운 스크롤이 끝날 때까지
     const y = await site.eval("Math.round(scrollY)");
     if (y <= 0) throw new Error("스크롤 안 됨");
@@ -463,8 +467,9 @@ try {
     return `AI 호출 2번(대화 이어짐), 끝 표시 '[끝]' 은 자막에서 제거, 마지막 말풍선: "${text.slice(0, 30)}…"`;
   });
 
-  if (FULL)
-    await check("전체 안내: 모든 단계가 내 목소리로 재생되고 입이 움직이며 끝까지 자동 진행 → 질문 시간으로", async () => {
+  // 발표용 짧은 안내는 늘 끝까지 재생해 30초 안에 끝나는지 확인. 긴 안내는 --full 일 때만.
+  if (FULL || CONFIG.tourMode !== "full")
+    await check(`전체 안내(${STEPS.length}단계): 내 목소리로 끝까지 자동 진행 → 질문 시간으로${CONFIG.tourMode !== "full" ? ", 30초 이내" : ""}`, async () => {
       await pet.eval("document.getElementById('btnStart').click()");
       const t0 = Date.now();
       const log = new Map(); // 단계 → { voice, talked }
@@ -485,13 +490,14 @@ try {
       if (!ended) throw new Error("5분 안에 끝나지 않음");
       const steps = [...log.keys()].map(Number).sort((a, b) => a - b);
       const bad = [...log].filter(([, e]) => e.voice !== "audio" || !e.talked).map(([k, e]) => `${+k + 1}단계(${e.voice}, 입${e.talked ? "O" : "X"})`);
-      if (steps.length !== 10) throw new Error(`거친 단계 ${steps.length}개: ${steps.map((n) => n + 1).join(",")}`);
+      if (steps.length !== STEPS.length) throw new Error(`거친 단계 ${steps.length}개: ${steps.map((n) => n + 1).join(",")}`);
       if (bad.length) throw new Error("문제 단계: " + bad.join(", "));
-      const took = ((Date.now() - t0) / 1000).toFixed(0);
+      const took = ((Date.now() - t0) / 1000).toFixed(1);
       if (ended !== "질문 시간 자동 시작") throw new Error("안내 뒤 질문 시간이 시작되지 않음");
+      if (CONFIG.tourMode !== "full" && +took >= 30) throw new Error(`발표용 안내가 ${took}초 — 30초를 넘음`);
       await pet.eval("document.getElementById('btnStop').click()");
       await waitFor(() => pet.eval("document.body.dataset.qna === 'off' && !document.getElementById('btnStart').hidden"), 5000, "질문 시간 끝내기");
-      return `10단계 모두 음성 재생·입 움직임, ${took}초 뒤 질문 시간 자동 시작 → '끝내기'로 종료`;
+      return `${STEPS.length}단계 모두 음성 재생·입 움직임, 안내 시작부터 ${took}초 만에 질문 시간 자동 시작 → '끝내기'로 종료`;
     });
 
   await check("오류 없음 (스크립트 예외·콘솔 오류·보안 정책 위반)", async () => {
