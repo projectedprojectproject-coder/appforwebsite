@@ -222,6 +222,8 @@ npm run voice                 # 바뀐 것만 만들기
 
 고양이 그림은 `scripts/build-pet-sprites.mjs` 가 SVG 로 그립니다 (`npm run sprites`, 캐릭터 시트: `design/character-sheet.html`).
 
+🎬 **홍보 영상**: [`design/promo-video.mp4`](design/promo-video.mp4) — 모델 고양이가 거대해져 도시에 나타나는 15초 세로 영상 (AI 생성, OpenArt · 768×1344)
+
 | 상태 | 언제 |
 |---|---|
 | 대기 · 눈 깜빡임 | 앱을 켰을 때, 질문을 들을 때 |
@@ -300,7 +302,7 @@ npm run voice                 # 바뀐 것만 만들기
 | `assets/pet/` | 고양이 그림 (상태별 SVG) |
 | `assets/audio/` | 내 목소리 mp3 (`tour/`, `qna/`) |
 | `scripts/` | `generate-voice.mjs`(음성), `sync-tour.mjs`(대본 받기), `build-pet-sprites.mjs`(그림) |
-| `design/` | 캐릭터 시트, 참고 사진 |
+| `design/` | 캐릭터 시트, 참고 사진, 홍보 영상(`promo-video.mp4`) |
 | `tests/app.test.mjs` | 앱 자동 테스트 (스크린샷: `tests/screenshots/`) |
 | `voice-compare/` | 목소리 설정 비교용 샘플 (깃 제외) |
 | `.env.example` | 키 설정 견본 |
