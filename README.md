@@ -304,7 +304,6 @@ npm run voice                 # 바뀐 것만 만들기
 | `scripts/` | `generate-voice.mjs`(음성), `sync-tour.mjs`(대본 받기), `build-pet-sprites.mjs`(그림) |
 | `design/` | 캐릭터 시트, 참고 사진, 홍보 영상(`promo-video.mp4`) |
 | `tests/app.test.mjs` | 앱 자동 테스트 (스크린샷: `tests/screenshots/`) |
-| `voice-compare/` | 목소리 설정 비교용 샘플 (깃 제외) |
 | `.env.example` | 키 설정 견본 |
 
 ## 문제가 생겼을 때

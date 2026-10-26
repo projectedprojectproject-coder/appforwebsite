@@ -626,6 +626,6 @@ await mkdir(designDir, { recursive: true });
 
 const rendered = SPRITES.map((s) => ({ ...s, svg: cat(s.file.replace(/\W/g, ""), s.pose) }));
 for (const s of rendered) await writeFile(path.join(petDir, s.file), s.svg);
-await writeFile(path.join(petDir, "cat-back.svg"), catBack());
+// 뒷모습은 앱에서 쓰지 않으므로 파일로 만들지 않고 캐릭터 시트 안에만 넣는다
 await writeFile(path.join(designDir, "character-sheet.html"), sheet(rendered));
-console.log(`스프라이트 ${rendered.length + 1}개 → assets/pet/, 캐릭터 시트 → design/character-sheet.html`);
+console.log(`스프라이트 ${rendered.length}개 → assets/pet/, 캐릭터 시트(뒷모습 포함) → design/character-sheet.html`);
