@@ -47,6 +47,16 @@ body {
 .mic-bar { flex: 1; height: 6px; border-radius: 3px; background: #f1e3e3; overflow: hidden; }
 .mic-bar i { display: block; height: 100%; width: 0; background: #e5484d; transition: width 60ms linear; }
 @keyframes pulse { 50% { opacity: .35; } }
+/* 마이크 상태 줄: 정상은 작게 회색, 문제가 있으면 버튼과 함께 */
+.mic-status { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; font-size: 11px; color: var(--muted); }
+.mic-status[hidden] { display: none; }
+.mic-status:not([data-state="ok"]) { color: #b4232a; }
+.mic-status button {
+  border: 1px solid #d9c9c9; border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 11px;
+  background: #fff; color: var(--ink); cursor: pointer;
+}
+.mic-status button:hover { background: #f6eeee; }
+.mic-status button[hidden] { display: none; }
 .bubble-progress { font-size: 11px; color: var(--muted); margin-top: 6px; text-align: right; }
 
 /* 펫 + 버튼 */

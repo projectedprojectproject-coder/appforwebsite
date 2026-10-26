@@ -101,7 +101,11 @@ function speechLikeWav({ lead = 0, speech = 2.4, tail = 0 } = {}) {
   const data = Buffer.alloc(n * 2);
   for (let i = 0; i < n; i++) {
     const t = i / rate - lead;
-    if (t < 0 || t > speech) continue; // 앞뒤 무음
+    if (t < 0 || t > speech) {
+      // 앞뒤: 실제 마이크처럼 아주 작은 잡음(말소리 기준보다 훨씬 작음). 완전한 0은 '꺼진 마이크'로 판단되므로
+      data.writeInt16LE(Math.round((Math.random() - 0.5) * 0.004 * 32767), i * 2);
+      continue;
+    }
     const syl = (t % 0.3) / 0.3; // 0.3초마다 한 음절: 앞 60%는 소리, 뒤 40%는 쉼
     const env = syl < 0.6 ? Math.sin((Math.PI * syl) / 0.6) : 0;
     const v = env * 0.6 * (Math.sin(2 * Math.PI * 180 * t) * 0.6 + Math.sin(2 * Math.PI * 360 * t) * 0.3 + (Math.random() - 0.5) * 0.2);
@@ -266,6 +270,13 @@ try {
     return imgs.map(([p]) => p).join(", ");
   });
 
+  await check("앱을 켜면 마이크를 미리 확인하고 장치 이름을 보여 줌", async () => {
+    await waitFor(() => pet.eval("!!document.body.dataset.mic"), 10000, "마이크 확인");
+    const s = await pet.eval("({ mic: document.body.dataset.mic, device: document.body.dataset.micDevice, text: document.getElementById('micStatusText').textContent, shown: !document.getElementById('micStatus').hidden })");
+    if (s.mic !== "ok" || !s.shown) throw new Error(JSON.stringify(s));
+    return s.text;
+  });
+
   await check("대기 중 눈을 깜빡이고 다시 뜸", async () => {
     await pet.shot("01-idle.png");
     const seen = await samplePoses(pet, 7000);
@@ -339,6 +350,50 @@ try {
     await waitFor(() => site.eval("!document.querySelector('[data-pet-focus]')"), 3000, "강조 해제");
     await waitFor(() => pet.eval("['idle','blink'].includes(document.body.dataset.pose)"), 4000, "대기로 돌아감");
     return "happy → idle";
+  });
+
+  await check("기본 마이크가 꺼져(무음) 있으면 소리가 들어오는 다른 마이크로 바꿈 (스테레오 믹스 제외)", async () => {
+    // 장치 목록과 마이크 열기를 흉내 낸다: 기본·헤드셋은 완전 무음, 스테레오 믹스는 쓰면 안 됨, good-mic 만 진짜 소리
+    const r = await pet.eval(`(async () => {
+      const md = navigator.mediaDevices;
+      const realGUM = md.getUserMedia.bind(md), realEnum = md.enumerateDevices.bind(md);
+      const asked = [];
+      const silent = () => { const ac = new AudioContext(); return ac.createMediaStreamDestination().stream; };
+      md.enumerateDevices = async () => [
+        { kind: "audioinput", deviceId: "default", label: "기본값" },
+        { kind: "audioinput", deviceId: "dead-headset", label: "꺼진 헤드셋" },
+        { kind: "audioinput", deviceId: "stereo", label: "스테레오 믹스(Realtek Audio)" },
+        { kind: "audioinput", deviceId: "good-mic", label: "Good Mic" },
+      ];
+      md.getUserMedia = async (c) => {
+        const id = c?.audio?.deviceId?.exact || "default";
+        asked.push(id);
+        return id === "good-mic" ? realGUM({ audio: true }) : silent();
+      };
+      try { await micPreflight(); } finally { md.getUserMedia = realGUM; md.enumerateDevices = realEnum; }
+      return { asked, device: document.body.dataset.micDevice, mic: document.body.dataset.mic };
+    })()`);
+    if (r.asked.includes("stereo")) throw new Error("스테레오 믹스를 열어 봄: " + r.asked.join(","));
+    if (r.asked.at(-1) !== "good-mic" || r.mic !== "ok" || /기본 마이크/.test(r.device)) throw new Error(JSON.stringify(r));
+    await pet.eval("micPreflight()"); // 원래 장치로 되돌림
+    return `시험한 순서 ${r.asked.join(" → ")}, 고른 마이크: ${r.device}`;
+  });
+
+  await check("마이크 권한이 꺼져 있으면 이유와 설정 버튼을 보여 주고, 켜지면 자동으로 이어짐", async () => {
+    await pet.eval("window.__realGUM = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); navigator.mediaDevices.getUserMedia = async () => { throw new DOMException('denied', 'NotAllowedError'); }; true");
+    await pet.eval("document.getElementById('btnAsk').click()");
+    await waitFor(() => pet.eval("document.body.dataset.qna === 'mic-error'"), 10000, "마이크 오류 안내");
+    const s = await pet.eval("({ text: document.getElementById('bubbleText').textContent, settings: !document.getElementById('btnMicSettings').hidden, retry: !document.getElementById('btnMicRetry').hidden })");
+    if (!/마이크 사용이 꺼져/.test(s.text) || !s.settings || !s.retry) throw new Error(JSON.stringify(s));
+    await pet.shot("05a-mic-denied.png");
+    // 사용자가 Windows 설정에서 켰다고 치고(권한 복구) 기다리면 3초 안에 저절로 이어져야 한다
+    const t0 = Date.now();
+    await pet.eval("navigator.mediaDevices.getUserMedia = window.__realGUM; true");
+    await waitFor(() => pet.eval("document.body.dataset.qna === 'intro'"), 6000, "권한이 돌아오면 자동 연결");
+    const secs = ((Date.now() - t0) / 1000).toFixed(1);
+    await pet.eval("document.getElementById('btnStop').click()");
+    await waitFor(() => pet.eval("document.body.dataset.qna === 'off'"), 5000, "질문 시간 끝내기");
+    return `안내: "${s.text.slice(0, 30)}…" + [마이크 설정 열기][다시 시도], 권한이 돌아오고 ${secs}초 만에 자동 연결`;
   });
 
   await check("질문 시간: 마이크로 질문을 듣고 → 음성 인식 → AI 답 → 내 목소리로 실시간 재생", async () => {

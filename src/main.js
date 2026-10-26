@@ -1,5 +1,5 @@
 // 메인 프로세스 — 펫 창과 사이트 창을 만들고, 펫의 요청을 받아 사이트 창을 조종한다.
-import { app, BrowserWindow, ipcMain, screen, session, shell } from "electron";
+import { app, BrowserWindow, ipcMain, screen, session, shell, systemPreferences } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONFIG } from "./config.js";
@@ -188,6 +188,16 @@ ipcMain.handle("site:clear", async () => {
   if (siteWin && !siteWin.isDestroyed()) await siteWin.webContents.executeJavaScript(CLEAR_SCRIPT).catch(() => {});
 });
 ipcMain.on("app:quit", () => app.quit());
+
+// 마이크: Windows 개인정보 설정에서 마이크가 막혀 있는지("granted" / "denied" …), 설정 화면 열기
+ipcMain.handle("mic:access", () => {
+  try {
+    return systemPreferences.getMediaAccessStatus("microphone");
+  } catch {
+    return "unknown";
+  }
+});
+ipcMain.handle("mic:open-settings", () => shell.openExternal(process.platform === "win32" ? "ms-settings:privacy-microphone" : "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"));
 
 // ── 질문·답변 ─────────────────────────────────────────
 ipcMain.handle("qna:info", () => ({

@@ -22,4 +22,6 @@ contextBridge.exposeInMainWorld("pet", {
   onAnswerFocus: (fn) => ipcRenderer.on("qna:focus", (_e, id, key, seg, seconds) => fn(id, key, seg, seconds)),
   onAnswerSegment: (fn) => ipcRenderer.on("qna:seg", (_e, id, seg) => fn(id, seg)),
   focusTarget: (key) => ipcRenderer.invoke("qna:focus-target", key),
+  micAccess: () => ipcRenderer.invoke("mic:access"),
+  openMicSettings: () => ipcRenderer.invoke("mic:open-settings"),
 });

@@ -322,4 +322,8 @@ window.pet.onSiteClosed(() => {
   setPose("idle");
   wakeUp();
   say("안녕하세요!", "제 포트폴리오를 안내해 드릴게요. '안내 시작'을 눌러 주세요.");
+  // 질문 시간에 쓸 마이크를 미리 확인 (잠깐 열었다 닫음) → 말풍선 아래에 상태 표시
+  micPreflight();
+  // 마이크를 새로 꽂거나 뺐을 때 다시 확인 (질문 시간 중이 아닐 때)
+  navigator.mediaDevices.addEventListener("devicechange", () => !qnaActive && micPreflight());
 })();

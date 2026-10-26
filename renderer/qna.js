@@ -12,26 +12,152 @@ const qnaReady = () => !!qnaInfo?.enabled && qnaInfo.missing.length === 0;
 // ── 마이크 ───────────────────────────────────────────
 // 소리를 직접(PCM) 받아 두었다가, 실제로 말한 부분(+앞뒤 0.3초)만 잘라 16kHz WAV 로 보낸다.
 // 앞뒤의 긴 무음을 빼면 음성 인식이 없는 말을 지어내는 일이 줄고, 올리는 시간도 짧아진다.
-let mic = null; // { stream, ctx, analyser, source }
-async function openMic() {
-  if (mic) return;
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-  });
+let mic = null; // { stream, ctx, analyser, source, label }
+
+// 다른 PC에서도 바로 쓸 수 있게:
+//  1) Windows 기본 마이크를 먼저 열고,
+//  2) 그 마이크가 완전히 무음(꺼짐·음소거·빠진 헤드셋)이면 소리가 들어오는 다른 마이크로 바꾸고,
+//  3) 실패하면 이유를 알기 쉬운 말로 알려 준다(권한 꺼짐 / 마이크 없음 / 다른 프로그램이 사용 중).
+const PROCESSING = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+const LOOPBACK = /stereo mix|스테레오 믹스|what u hear|loopback|wave out/i; // 스피커 소리를 되받는 가상 장치는 제외
+
+async function getStream(deviceId) {
+  const audio = deviceId ? { ...PROCESSING, deviceId: { exact: deviceId } } : PROCESSING;
+  try {
+    return await navigator.mediaDevices.getUserMedia({ audio });
+  } catch (e) {
+    // 일부 장치는 음향 처리 옵션을 못 받는다 → 옵션 없이 한 번 더
+    if (e.name === "OverconstrainedError" || e.name === "NotReadableError")
+      return navigator.mediaDevices.getUserMedia({ audio: deviceId ? { deviceId: { exact: deviceId } } : true });
+    throw e;
+  }
+}
+function attach(stream) {
   const ctx = new AudioContext();
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 1024;
   const source = ctx.createMediaStreamSource(stream);
   source.connect(analyser);
-  mic = { stream, ctx, analyser, source };
+  return { stream, ctx, analyser, source, label: stream.getAudioTracks()[0]?.label || "기본 마이크" };
+}
+function release(m) {
+  m.stream.getTracks().forEach((t) => t.stop());
+  m.ctx.close();
+}
+// 0.6초 동안 소리 값이 완전히 0이면 '죽은' 마이크(꺼짐·음소거)로 본다. 조용한 방도 미세한 잡음은 있다.
+async function isDead(m) {
+  const buf = new Float32Array(m.analyser.fftSize);
+  for (let i = 0; i < 6; i++) {
+    await new Promise((r) => setTimeout(r, 100));
+    m.analyser.getFloatTimeDomainData(buf);
+    if (buf.some((v) => Math.abs(v) > 1e-6)) return false;
+  }
+  return true;
+}
+
+async function openMic() {
+  if (mic) return mic;
+  const first = attach(await getStream(null)); // 권한·장치 문제는 여기서 오류로 나온다
+  if (!(await isDead(first))) return (mic = first);
+  // 기본 마이크가 무음 → 다른 마이크를 차례로 시험 (권한을 얻은 뒤라 장치 목록이 보인다)
+  const firstId = first.stream.getAudioTracks()[0]?.getSettings().deviceId;
+  const others = (await navigator.mediaDevices.enumerateDevices()).filter(
+    (d) => d.kind === "audioinput" && d.deviceId && !["default", "communications", firstId].includes(d.deviceId) && !LOOPBACK.test(d.label),
+  );
+  for (const d of others) {
+    let m;
+    try {
+      m = attach(await getStream(d.deviceId));
+    } catch {
+      continue;
+    }
+    if (!(await isDead(m))) {
+      release(first);
+      return (mic = m);
+    }
+    release(m);
+  }
+  return (mic = first); // 모두 무음이면 기본 마이크 그대로 (말하면 소리가 들어올 수도 있으니)
 }
 function closeMic() {
   if (!mic) return;
-  mic.stream.getTracks().forEach((t) => t.stop());
-  mic.ctx.close();
+  release(mic);
   mic = null;
   showMic(false);
 }
+
+// 마이크 오류 → 이유와 해결 방법
+async function micProblem(e) {
+  const access = await window.pet.micAccess().catch(() => "unknown");
+  if (e?.name === "NotAllowedError" || e?.name === "SecurityError" || access === "denied" || access === "restricted")
+    return {
+      kind: "denied",
+      text: "Windows에서 이 앱의 마이크 사용이 꺼져 있어요. [마이크 설정 열기] → '마이크 액세스'와 '데스크톱 앱이 마이크에 액세스하도록 허용'을 켜 주세요. 켜면 자동으로 다시 연결해요.",
+    };
+  if (e?.name === "NotFoundError" || e?.name === "OverconstrainedError")
+    return { kind: "none", text: "연결된 마이크를 찾지 못했어요. 마이크를 꽂으면 자동으로 다시 연결해요." };
+  if (e?.name === "NotReadableError" || e?.name === "AbortError")
+    return { kind: "busy", text: "다른 프로그램(줌·팀즈 등)이 마이크를 쓰고 있어요. 그 프로그램을 닫으면 자동으로 다시 연결해요." };
+  return { kind: "error", text: `마이크를 열지 못했어요 (${e?.name || "알 수 없는 오류"}). [다시 시도]를 눌러 주세요.` };
+}
+
+// 말풍선 아래 마이크 상태 줄
+function setMicStatus(state, text = "") {
+  const box = $("micStatus");
+  box.hidden = !state;
+  box.dataset.state = state || "";
+  $("micStatusText").textContent = text;
+  $("btnMicSettings").hidden = state !== "denied";
+  $("btnMicRetry").hidden = !state || state === "ok";
+  document.body.dataset.mic = state || "";
+}
+
+// 앱을 켤 때 마이크를 잠깐 열어 확인하고 바로 닫는다 → 발표 전에 문제를 미리 알 수 있다
+async function micPreflight() {
+  if (!qnaReady() || qnaActive) return;
+  try {
+    const m = await openMic();
+    document.body.dataset.micDevice = m.label;
+    setMicStatus("ok", `🎤 ${m.label}`);
+  } catch (e) {
+    const p = await micProblem(e);
+    setMicStatus(p.kind, p.text);
+  } finally {
+    if (!qnaActive) closeMic();
+  }
+}
+
+// 질문 시간용: 마이크가 열릴 때까지 안내하며 기다린다(3초마다, 마이크를 꽂을 때, [다시 시도] 때 재시도).
+// 질문 시간이 끝나면 false.
+async function ensureMic(alive) {
+  for (;;) {
+    try {
+      const m = await openMic();
+      document.body.dataset.micDevice = m.label;
+      setMicStatus("ok", `🎤 ${m.label}`);
+      return true;
+    } catch (e) {
+      const p = await micProblem(e);
+      qnaState("mic-error");
+      setPose("think");
+      say("마이크 연결이 필요해요", p.text);
+      setMicStatus(p.kind, "");
+    }
+    await new Promise((resolve) => {
+      const done = () => {
+        clearTimeout(t);
+        navigator.mediaDevices.removeEventListener("devicechange", done);
+        micRetryNow = null;
+        resolve();
+      };
+      const t = setTimeout(done, 3000);
+      navigator.mediaDevices.addEventListener("devicechange", done);
+      micRetryNow = done;
+    });
+    if (!alive()) return false;
+  }
+}
+let micRetryNow = null;
 function micLevel() {
   const buf = new Uint8Array(mic.analyser.fftSize);
   mic.analyser.getByteTimeDomainData(buf);
@@ -252,16 +378,9 @@ async function startQna() {
   qnaState("intro");
 
   await window.pet.qnaStart();
-  try {
-    await openMic();
-  } catch {
-    say("마이크를 쓸 수 없어요", "마이크가 연결되어 있는지, Windows 설정 → 개인정보 → 마이크에서 데스크톱 앱 접근이 켜져 있는지 확인해 주세요.");
-    qnaActive = false;
-    qnaRun++;
-    qnaState("off");
-    setTouring(false);
-    return;
-  }
+  // 마이크가 안 열리면 포기하지 않고 이유를 알려 주며 기다린다 (설정을 켜거나 마이크를 꽂으면 바로 이어짐)
+  if (!(await ensureMic(alive))) return;
+  qnaState("intro"); // (마이크를 기다렸다면 'mic-error' 에서 되돌림)
   await playLine("qna-intro", "happy");
 
   let asked = 0;
@@ -316,5 +435,11 @@ function stopQna() {
   speech?.stop();
   window.pet.stopSpeaking();
   closeMic();
+  micRetryNow?.();
+  if (document.body.dataset.mic !== "ok") setMicStatus(null);
   qnaState("off");
 }
+
+// 마이크 상태 줄의 버튼 (qna.js 는 pet.js 보다 먼저 읽히므로 $ 대신 getElementById)
+document.getElementById("btnMicSettings").addEventListener("click", () => window.pet.openMicSettings());
+document.getElementById("btnMicRetry").addEventListener("click", () => (qnaActive ? micRetryNow?.() : micPreflight()));
