@@ -9,7 +9,7 @@ import { CONFIG } from "./config.js";
 const withQna = CONFIG.qna.enabled && CONFIG.qna.autoStartAfterTour;
 
 // ── 발표용 짧은 안내 (30초 이내) ──────────────────────
-// 한 단계에 한 문장, 전체 약 130자(음성 약 20초) + 스크롤 시간.
+// 한 단계에 한 문장, 전체 약 160자(음성 약 21초) + 스크롤 시간. 말로 읽히므로 문장마다 끝을 맺는다.
 const SHORT_TOUR = [
   {
     id: "hero",
@@ -22,21 +22,21 @@ const SHORT_TOUR = [
     id: "research",
     target: "#research",
     title: "연구",
-    text: "유튜브 추천으로 퍼지는 AI 유사과학 영상을 연구해요.",
+    text: "그중에서도 유튜브 추천을 타고 퍼지는 AI 유사과학 영상을 연구하고 있어요.",
     audio: "/audio/tour-short/02-research.mp3",
   },
   {
     id: "projects",
     target: "#projects",
     title: "작품",
-    text: "SF 단편부터 다큐, 광고까지 직접 만들었고,",
+    text: "SF 단편부터 다큐, 광고까지 직접 만들었고요.",
     audio: "/audio/tour-short/03-projects.mp3",
   },
   {
     id: "publications",
     target: "#publications",
     title: "저서 · 수상",
-    text: "책 두 권을 내고 우수논문상도 받았어요.",
+    text: "책도 두 권 냈고, 우수논문상도 받았어요.",
     audio: "/audio/tour-short/04-publications.mp3",
   },
   withQna
@@ -44,7 +44,7 @@ const SHORT_TOUR = [
         id: "contact",
         target: "#contact",
         title: "질문",
-        text: "궁금한 점은 지금 물어봐 주세요.",
+        text: "궁금한 점 있으시면 편하게 물어봐 주세요.",
         audio: "/audio/tour-short/05-contact-qna.mp3",
       }
     : {
