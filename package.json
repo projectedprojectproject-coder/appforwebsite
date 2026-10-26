@@ -1,7 +1,7 @@
 {
   "name": "portfolio-pet",
   "productName": "Portfolio PET",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "포트폴리오 사이트를 내 목소리로 안내하는 데스크톱 펫",
   "author": "이윤호",
   "private": true,
@@ -13,7 +13,7 @@
     "voice": "node scripts/generate-voice.mjs",
     "sprites": "node scripts/build-pet-sprites.mjs",
     "test": "node tests/app.test.mjs",
-    "dist": "electron-builder --win"
+    "dist": "node scripts/embed-keys.mjs && electron-builder --win"
   },
   "build": {
     "appId": "com.portfolio.pet",

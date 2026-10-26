@@ -10,14 +10,21 @@ import * as qna from "./qna.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
-// 키(.env): 개발 중에는 PET 폴더, 설치한 앱은 사용자 데이터 폴더(%APPDATA%/Portfolio PET)의 .env 를 읽는다.
-// .env 는 설치 파일에 들어가지 않는다. 이미 설정된 환경 변수가 우선한다.
+// 키 찾는 순서: 이미 설정된 환경 변수 → 프로젝트 폴더 .env(개발) → %APPDATA%/Portfolio PET/.env
+//   → 설치 파일에 들어 있는 키 묶음(src/embedded-config.js, npm run dist 때 만들어짐).
+// 앞에서 찾은 값이 있으면 뒤의 값으로 덮어쓰지 않는다.
 for (const dir of [ROOT, app.getPath("userData")]) {
   try {
     process.loadEnvFile(path.join(dir, ".env"));
   } catch {
     /* 없으면 넘어감 */
   }
+}
+try {
+  const { embeddedEnv } = await import("./embedded-config.js");
+  for (const [k, v] of Object.entries(embeddedEnv())) if (!process.env[k]) process.env[k] = v;
+} catch {
+  /* 개발 중이거나 키 없이 만든 설치 파일 */
 }
 
 let petWin = null;

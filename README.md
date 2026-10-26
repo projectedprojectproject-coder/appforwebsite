@@ -45,8 +45,7 @@ npm 패키지가 아닌 외부 도구·서비스:
 
 1. [Releases](https://github.com/projectedprojectproject-coder/appforwebsite/releases) 에서 `PortfolioPET-Setup-<버전>.exe` 를 받아 실행합니다.
 2. "Windows의 PC 보호" 창이 뜨면 **추가 정보 → 실행** (코드 서명이 없는 설치 파일).
-3. 질문 시간을 쓰려면 아래 [환경 변수 설정](#환경-변수-설정)대로 `%APPDATA%\Portfolio PET\.env` 를 만듭니다.
-4. 바탕화면·시작 메뉴의 **Portfolio PET** 으로 실행합니다.
+3. 바탕화면·시작 메뉴의 **Portfolio PET** 으로 실행합니다. 배포한 설치 파일에는 키가 들어 있어 **따로 설정하지 않아도 질문 시간까지 바로 됩니다** (아래 [설치 파일에 들어가는 키](#설치-파일에-들어가는-키)).
 
 ### 소스에서 (개발)
 
@@ -66,7 +65,7 @@ npm start                         # 앱 실행 (첫 실행 때 Electron 실행 �
 | `npm run voice` | 내 목소리 mp3 만들기 (바뀐 것만). `-- --dry-run` 으로 미리 보기 |
 | `npm run sync` | 포트폴리오 레포의 최신 대본 + 사이트에 올라간 mp3 받기 |
 | `npm run sprites` | 고양이 그림·캐릭터 시트 다시 그리기 |
-| `npm run dist` | `dist/PortfolioPET-Setup-<버전>.exe` 설치 파일 만들기 |
+| `npm run dist` | `dist/PortfolioPET-Setup-<버전>.exe` 설치 파일 만들기 (`.env` 의 키를 함께 넣음) |
 
 `npm run dist` 중 `EPERM: operation not permitted, rename …nsis…` 오류가 나면(백신이 내려받은 도구를 검사하는 중) 한 번 더 실행하면 됩니다.
 
@@ -102,12 +101,21 @@ VOICE_STYLE=
 | `ANTHROPIC_AUTH_TOKEN` | 선택 | `ANTHROPIC_API_KEY` 대신 쓰는 토큰 | AI 답변 |
 | `ELEVENLABS_API_URL` · `ANTHROPIC_BASE_URL` | 테스트용 | API 주소를 바꿈. `npm test` 가 가짜 서버로 돌릴 때 씀 — 평소에는 비워 둠 | 테스트 |
 
-- 세 개의 키(`ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ANTHROPIC_API_KEY`) 중 하나라도 없으면 질문 시간이 꺼지고, 펫이 빠진 키 이름을 알려 줍니다. **안내는 키 없이도** 됩니다(미리 만든 mp3).
+- 세 개의 키(`ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ANTHROPIC_API_KEY`) 중 하나라도 없으면 질문 시간이 꺼지고, 펫이 빠진 키 이름을 알려 줍니다. **안내는 키 없이도** 됩니다(미리 만든 mp3). 배포한 설치 파일은 키를 품고 있어 이 설정이 필요 없습니다.
 - `.env` 대신 PowerShell 환경 변수로도 됩니다. 이미 설정된 환경 변수가 `.env` 보다 우선합니다.
   ```powershell
   $env:ANTHROPIC_API_KEY = "..."; npm start
   ```
-- `.env` 는 `.gitignore` 로 깃에서 빠지고, 설치 파일(.exe)에도 들어가지 않습니다.
+- `.env` 파일 자체는 `.gitignore` 로 깃에서 빠지고, 설치 파일(.exe)에도 들어가지 않습니다.
+
+### 설치 파일에 들어가는 키
+
+`npm run dist` 는 빌드 직전에 `scripts/embed-keys.mjs` 로 `.env` 의 키(`ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ANTHROPIC_API_KEY`, `VOICE_*`)를 **`src/embedded-config.js` 에 난독화해서 넣고**, 이 파일이 설치 파일 안에 함께 들어갑니다. 그래서 다른 PC에 설치해도 `.env` 없이 질문 시간이 바로 켜집니다.
+
+- 앱이 키를 찾는 순서: **환경 변수 → 프로젝트 폴더 `.env` → `%APPDATA%\Portfolio PET\.env` → 설치 파일 안의 키 묶음**. 앞에 있는 값이 우선하므로, 특정 PC에서만 다른 키를 쓰려면 그 PC의 `.env` 에 넣으면 됩니다.
+- `src/embedded-config.js` 는 `.gitignore` 로 **저장소에는 올라가지 않습니다.**
+- 난독화는 키 모양이 그대로 보이지 않게 할 뿐이라, 설치 파일을 받은 사람이 마음먹으면 키를 꺼낼 수 있습니다. 설치 파일을 공개 배포하는 경우 Anthropic·ElevenLabs 콘솔에서 **사용 한도(월 사용량·크레딧 상한)** 를 걸어 두는 것을 권장합니다.
+- 키 없는 설치 파일을 만들려면: `node scripts/embed-keys.mjs --clear` 후 `npx electron-builder --win` (이 경우 질문 시간은 각 PC의 `.env` 가 있어야 켜짐).
 - 질문 시간의 동작(모델, 대기·침묵 시간 등)은 환경 변수가 아니라 `src/config.js` 의 `qna` 에서 바꿉니다 → [설정](#설정-srcconfigjs-의-qna).
 
 ## 사용법

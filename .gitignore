@@ -3,3 +3,4 @@ dist/
 .env
 tests/screenshots/
 voice-compare/
+src/embedded-config.js
